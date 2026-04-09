@@ -15,4 +15,7 @@ claude plugins marketplace update claude-plugins-official || true
 # Install required plugin from the explicit marketplace.
 claude plugins install ralph-loop@claude-plugins-official
 
+# Install project dependencies.
+(cd frontend && npm install)
+
 echo "Dev container is ready."
