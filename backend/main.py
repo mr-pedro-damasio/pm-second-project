@@ -2,13 +2,17 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from dotenv import find_dotenv, load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse
 from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import BaseModel
 
+load_dotenv(find_dotenv(usecwd=True))
+
 import crud
 import database
+from routes.ai import router as ai_router
 from routes.board import router as board_router
 
 STATIC_DIR = Path(os.getenv("STATIC_DIR", str(Path(__file__).parent / "static")))
@@ -26,6 +30,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(board_router)
+app.include_router(ai_router)
 
 
 class Credentials(BaseModel):

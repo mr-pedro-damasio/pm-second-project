@@ -88,3 +88,39 @@ export const renameColumn = (id: number, title: string): Promise<ApiColumn> =>
     method: "PATCH",
     body: JSON.stringify({ title }),
   }).then((r) => r.json());
+
+// --- AI chat ---
+
+type ChatBoard = {
+  columns: Array<{
+    id: number;
+    title: string;
+    cards: Array<{ id: number; title: string; details: string }>;
+  }>;
+};
+
+export type AiChatResponse = {
+  message: string;
+  board_updated: boolean;
+  operations: unknown[] | null;
+};
+
+export const toBoardForChat = (board: BoardData): ChatBoard => ({
+  columns: board.columns.map((col) => ({
+    id: fromColId(col.id),
+    title: col.title,
+    cards: col.cardIds.map((cardId) => {
+      const card = board.cards[cardId];
+      return { id: fromCardId(cardId), title: card.title, details: card.details };
+    }),
+  })),
+});
+
+export const aiChat = (
+  messages: Array<{ role: string; content: string }>,
+  board: ChatBoard
+): Promise<AiChatResponse> =>
+  apiFetch("/api/ai/chat", {
+    method: "POST",
+    body: JSON.stringify({ messages, board }),
+  }).then((r) => r.json());

@@ -11,5 +11,10 @@ if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
 fi
 
 docker build -t "$IMAGE" "$(dirname "$0")/.."
-docker run -d --name "$CONTAINER" -p "${PORT}:8000" "$IMAGE"
+ENV_FILE="$(dirname "$0")/../.env"
+ENV_ARG=""
+if [ -f "$ENV_FILE" ]; then
+  ENV_ARG="--env-file $ENV_FILE"
+fi
+docker run -d --name "$CONTAINER" -p "${PORT}:8000" $ENV_ARG "$IMAGE"
 echo "Kanban Studio running at http://localhost:${PORT}"

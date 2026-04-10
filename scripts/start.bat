@@ -12,5 +12,7 @@ if not errorlevel 1 (
 )
 
 docker build -t %IMAGE% "%~dp0.."
-docker run -d --name %CONTAINER% -p %PORT%:8000 %IMAGE%
+set ENV_ARG=
+if exist "%~dp0..\.env" set ENV_ARG=--env-file "%~dp0..\.env"
+docker run -d --name %CONTAINER% -p %PORT%:8000 %ENV_ARG% %IMAGE%
 echo Kanban Studio running at http://localhost:%PORT%

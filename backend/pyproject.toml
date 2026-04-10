@@ -5,7 +5,9 @@ requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.20",
     "fastapi>=0.115",
+    "httpx>=0.28",
     "itsdangerous>=2.2",
+    "python-dotenv>=1.0",
     "sqlalchemy[asyncio]>=2.0",
     "uvicorn[standard]>=0.34",
 ]
@@ -13,7 +15,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8",
-    "httpx>=0.28",
+    "anyio>=4",
+    "aiosqlite>=0.20",
 ]
 
 [tool.pytest.ini_options]

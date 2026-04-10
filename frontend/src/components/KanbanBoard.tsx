@@ -15,6 +15,7 @@ import {
 } from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
+import { AiChat } from "@/components/AiChat";
 import { moveCard as moveCardLocally, type BoardData } from "@/lib/kanban";
 import * as api from "@/lib/api";
 
@@ -31,12 +32,13 @@ export const KanbanBoard = () => {
   const [busy, setBusy] = useState(false);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
+  const fetchBoard = async () => {
+    const data = await api.getBoard();
+    setBoard(api.toBoardData(data));
+  };
+
   useEffect(() => {
-    api
-      .getBoard()
-      .then((data) => setBoard(api.toBoardData(data)))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    fetchBoard().catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const sensors = useSensors(
@@ -214,34 +216,39 @@ export const KanbanBoard = () => {
         {loading ? (
           <p className="text-sm text-[var(--gray-text)]">Loading board...</p>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={collisionDetection}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <section
-              className={`grid gap-6 lg:grid-cols-5 ${busy ? "pointer-events-none opacity-70" : ""}`}
-            >
-              {board.columns.map((column) => (
-                <KanbanColumn
-                  key={column.id}
-                  column={column}
-                  cards={column.cardIds.map((cardId) => board.cards[cardId])}
-                  onRename={handleRenameColumn}
-                  onAddCard={handleAddCard}
-                  onDeleteCard={handleDeleteCard}
-                />
-              ))}
-            </section>
-            <DragOverlay>
-              {activeCard ? (
-                <div className="w-[260px]">
-                  <KanbanCardPreview card={activeCard} />
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+          <div className="flex items-start gap-6">
+            <div className="min-w-0 flex-1">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={collisionDetection}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <section
+                  className={`grid gap-6 lg:grid-cols-5 ${busy ? "pointer-events-none opacity-70" : ""}`}
+                >
+                  {board.columns.map((column) => (
+                    <KanbanColumn
+                      key={column.id}
+                      column={column}
+                      cards={column.cardIds.map((cardId) => board.cards[cardId])}
+                      onRename={handleRenameColumn}
+                      onAddCard={handleAddCard}
+                      onDeleteCard={handleDeleteCard}
+                    />
+                  ))}
+                </section>
+                <DragOverlay>
+                  {activeCard ? (
+                    <div className="w-[260px]">
+                      <KanbanCardPreview card={activeCard} />
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            </div>
+            <AiChat board={board} onBoardUpdate={fetchBoard} />
+          </div>
         )}
       </main>
     </div>

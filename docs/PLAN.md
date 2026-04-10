@@ -209,13 +209,13 @@ Replace hardcoded frontend state with live API calls. The board is now persisten
 Wire up OpenRouter. Verify the backend can make an AI call.
 
 ### Steps
-- [ ] Add `openai` Python package to backend dependencies (OpenRouter is OpenAI-compatible)
-- [ ] Create `backend/ai.py` — OpenRouter client using `OPENROUTER_API_KEY` from environment
+- [x] Add `openai` Python package to backend dependencies (OpenRouter is OpenAI-compatible)
+- [x] Create `backend/ai.py` — OpenRouter client using `OPENROUTER_API_KEY` from environment
   - Model: `openai/gpt-oss-120b`
   - Base URL: `https://openrouter.ai/api/v1`
-- [ ] Add `GET /api/ai/ping` route — calls the AI with "What is 2+2? Reply with just the number." and returns the response
-- [ ] Load `OPENROUTER_API_KEY` from `.env` via `python-dotenv` in backend startup
-- [ ] Backend test: `backend/tests/test_ai_ping.py` — mocks the OpenRouter call, verifies the route returns a response
+- [x] Add `GET /api/ai/ping` route — calls the AI with "What is 2+2? Reply with just the number." and returns the response
+- [x] Load `OPENROUTER_API_KEY` from `.env` via `python-dotenv` in backend startup
+- [x] Backend test: `backend/tests/test_ai_ping.py` — mocks the OpenRouter call, verifies the route returns a response
 
 ### Tests
 - `GET /api/ai/ping` returns 200 with `{"result": "4"}` (or similar)
@@ -233,18 +233,18 @@ Wire up OpenRouter. Verify the backend can make an AI call.
 Extend the AI endpoint to accept a user message + conversation history, include the Kanban board state as context, and return structured output (text response + optional board update).
 
 ### Steps
-- [ ] Define Pydantic response schema `AiResponse`:
+- [x] Define Pydantic response schema `AiResponse`:
   - `message: str` — the AI's reply to the user
   - `board_update: BoardUpdate | None` — optional: list of card create/move/edit/delete operations
-- [ ] Define `BoardUpdate` schema with typed operations (create_card, move_card, edit_card, delete_card, rename_column)
-- [ ] Create `POST /api/ai/chat` route:
+- [x] Define `BoardUpdate` schema with typed operations (create_card, move_card, edit_card, delete_card, rename_column)
+- [x] Create `POST /api/ai/chat` route:
   - Request body: `{ messages: [{role, content}], board: BoardData }`
   - Builds system prompt including current board state as JSON
   - Calls OpenRouter with structured output (JSON schema enforcement)
   - Applies any `board_update` operations to the database
   - Returns `AiResponse`
-- [ ] Write a clear system prompt that instructs the AI on the board JSON format and the update operations
-- [ ] Backend tests: `backend/tests/test_ai_chat.py`
+- [x] Write a clear system prompt that instructs the AI on the board JSON format and the update operations
+- [x] Backend tests: `backend/tests/test_ai_chat.py`
   - Test with mocked AI response that includes a board update — verify DB is updated
   - Test with mocked AI response with no board update — verify DB is unchanged
   - Test invalid AI response is handled gracefully
@@ -266,18 +266,18 @@ Extend the AI endpoint to accept a user message + conversation history, include 
 Add the chat UI to the frontend. When the AI updates the board, the UI refreshes automatically.
 
 ### Steps
-- [ ] Create `frontend/src/components/AiChat.tsx` — sidebar chat widget
+- [x] Create `frontend/src/components/AiChat.tsx` — sidebar chat widget
   - Message list (user + assistant bubbles)
   - Text input + send button
   - Styled using project color scheme (purple submit button, navy headings, etc.)
-- [ ] Update `frontend/src/app/page.tsx` (or `KanbanBoard.tsx` layout) to render the sidebar alongside the board
-- [ ] Wire `AiChat` to `POST /api/ai/chat`:
+- [x] Update `frontend/src/app/page.tsx` (or `KanbanBoard.tsx` layout) to render the sidebar alongside the board
+- [x] Wire `AiChat` to `POST /api/ai/chat`:
   - Send current board state + conversation history with each message
   - On response, update local message list
   - If `board_update` is present in response, re-fetch the full board from `GET /api/board` and update `KanbanBoard` state
-- [ ] Pass a `onBoardUpdate` callback or shared state mechanism from `KanbanBoard` to `AiChat` to trigger re-fetch
-- [ ] Show a loading indicator in the chat input while waiting for AI response
-- [ ] Playwright e2e test: send a chat message asking to create a card, verify the card appears on the board
+- [x] Pass a `onBoardUpdate` callback or shared state mechanism from `KanbanBoard` to `AiChat` to trigger re-fetch
+- [x] Show a loading indicator in the chat input while waiting for AI response
+- [x] Playwright e2e test: send a chat message asking to create a card, verify the card appears on the board
 
 ### Tests
 - Sending a message updates the chat message list
