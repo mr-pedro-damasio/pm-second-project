@@ -6,6 +6,17 @@ from models import Board, Card, KanbanColumn, User
 
 DEFAULT_COLUMNS = ["Backlog", "Discovery", "In Progress", "Review", "Done"]
 
+DEFAULT_CARDS: list[tuple[int, str, str]] = [
+    (0, "Align roadmap themes", "Draft quarterly themes with impact statements and metrics."),
+    (0, "Gather customer signals", "Review support tags, sales notes, and churn feedback."),
+    (1, "Prototype analytics view", "Sketch initial dashboard layout and key drill-downs."),
+    (2, "Refine status language", "Standardize column labels and tone across the board."),
+    (2, "Design card layout", "Add hierarchy and spacing for scanning dense lists."),
+    (3, "QA micro-interactions", "Verify hover, focus, and loading states."),
+    (4, "Ship marketing page", "Final copy approved and asset pack delivered."),
+    (4, "Close onboarding sprint", "Document release notes and share internally."),
+]
+
 
 async def get_user(db: AsyncSession, username: str) -> User | None:
     result = await db.execute(select(User).where(User.username == username))
@@ -24,8 +35,17 @@ async def seed_default_user(db: AsyncSession) -> None:
         new_board = Board(user_id=user.id, title="My Board")
         db.add(new_board)
         await db.flush()
+        columns = []
         for i, title in enumerate(DEFAULT_COLUMNS):
-            db.add(KanbanColumn(board_id=new_board.id, title=title, position=i))
+            col = KanbanColumn(board_id=new_board.id, title=title, position=i)
+            db.add(col)
+            columns.append(col)
+        await db.flush()
+        col_position: dict[int, int] = {}
+        for col_idx, card_title, card_details in DEFAULT_CARDS:
+            pos = col_position.get(col_idx, 0)
+            db.add(Card(column_id=columns[col_idx].id, title=card_title, details=card_details, position=pos))
+            col_position[col_idx] = pos + 1
 
     await db.commit()
 

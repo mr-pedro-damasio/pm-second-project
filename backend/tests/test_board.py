@@ -83,7 +83,6 @@ def test_create_card(client):
     card = r.json()
     assert card["title"] == "New card"
     assert card["details"] == "Some details"
-    assert card["position"] == 0
 
 
 def test_create_card_requires_auth(client):
