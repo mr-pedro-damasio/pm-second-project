@@ -18,4 +18,7 @@ claude plugins install ralph-loop@claude-plugins-official
 # Install project dependencies.
 (cd frontend && npm install)
 
+# Install Playwright browser for e2e tests.
+(cd frontend && npx playwright install chromium --with-deps)
+
 echo "Dev container is ready."

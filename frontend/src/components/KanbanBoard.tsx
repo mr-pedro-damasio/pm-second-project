@@ -1,28 +1,46 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  pointerWithin,
+  rectIntersection,
   useSensor,
   useSensors,
-  closestCorners,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
-import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
+import { moveCard as moveCardLocally, type BoardData } from "@/lib/kanban";
+import * as api from "@/lib/api";
+
+// Prefer pointer position over geometry — prevents "adjacent column" misdrops.
+// Falls back to rect intersection when the pointer is outside all droppables.
+const collisionDetection: CollisionDetection = (args) => {
+  const within = pointerWithin(args);
+  return within.length > 0 ? within : rectIntersection(args);
+};
 
 export const KanbanBoard = () => {
-  const [board, setBoard] = useState<BoardData>(() => initialData);
+  const [board, setBoard] = useState<BoardData>({ columns: [], cards: {} });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
+  useEffect(() => {
+    api
+      .getBoard()
+      .then((data) => setBoard(api.toBoardData(data)))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
   const cardsById = useMemo(() => board.cards, [board.cards]);
@@ -31,62 +49,114 @@ export const KanbanBoard = () => {
     setActiveCardId(event.active.id as string);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveCardId(null);
+    if (!over || active.id === over.id || busy) return;
 
-    if (!over || active.id === over.id) {
-      return;
+    const prevBoard = board;
+    const nextColumns = moveCardLocally(
+      board.columns,
+      active.id as string,
+      over.id as string
+    );
+    const targetCol = nextColumns.find((col) =>
+      col.cardIds.includes(active.id as string)
+    );
+    if (!targetCol) return;
+    const newPosition = targetCol.cardIds.indexOf(active.id as string);
+
+    setBoard((prev) => ({ ...prev, columns: nextColumns }));
+    setBusy(true);
+    try {
+      await api.moveCard(
+        api.fromCardId(active.id as string),
+        api.fromColId(targetCol.id),
+        newPosition
+      );
+    } catch {
+      setBoard(prevBoard);
+    } finally {
+      setBusy(false);
     }
-
-    setBoard((prev) => ({
-      ...prev,
-      columns: moveCard(prev.columns, active.id as string, over.id as string),
-    }));
   };
 
-  const handleRenameColumn = (columnId: string, title: string) => {
+  const handleRenameColumn = async (columnId: string, title: string) => {
+    const prevTitle =
+      board.columns.find((col) => col.id === columnId)?.title ?? title;
     setBoard((prev) => ({
       ...prev,
-      columns: prev.columns.map((column) =>
-        column.id === columnId ? { ...column, title } : column
+      columns: prev.columns.map((col) =>
+        col.id === columnId ? { ...col, title } : col
       ),
     }));
+    try {
+      await api.renameColumn(api.fromColId(columnId), title);
+    } catch {
+      setBoard((prev) => ({
+        ...prev,
+        columns: prev.columns.map((col) =>
+          col.id === columnId ? { ...col, title: prevTitle } : col
+        ),
+      }));
+    }
   };
 
-  const handleAddCard = (columnId: string, title: string, details: string) => {
-    const id = createId("card");
-    setBoard((prev) => ({
-      ...prev,
-      cards: {
-        ...prev.cards,
-        [id]: { id, title, details: details || "No details yet." },
-      },
-      columns: prev.columns.map((column) =>
-        column.id === columnId
-          ? { ...column, cardIds: [...column.cardIds, id] }
-          : column
-      ),
-    }));
+  const handleAddCard = async (
+    columnId: string,
+    title: string,
+    details: string
+  ) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const card = await api.createCard(api.fromColId(columnId), title, details);
+      const id = api.toCardId(card.id);
+      setBoard((prev) => ({
+        ...prev,
+        cards: {
+          ...prev.cards,
+          [id]: { id, title: card.title, details: card.details },
+        },
+        columns: prev.columns.map((col) =>
+          col.id === columnId
+            ? { ...col, cardIds: [...col.cardIds, id] }
+            : col
+        ),
+      }));
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleDeleteCard = (columnId: string, cardId: string) => {
-    setBoard((prev) => {
-      return {
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  };
+
+  const handleDeleteCard = async (columnId: string, cardId: string) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await api.deleteCard(api.fromCardId(cardId));
+      setBoard((prev) => ({
         ...prev,
         cards: Object.fromEntries(
           Object.entries(prev.cards).filter(([id]) => id !== cardId)
         ),
-        columns: prev.columns.map((column) =>
-          column.id === columnId
-            ? {
-                ...column,
-                cardIds: column.cardIds.filter((id) => id !== cardId),
-              }
-            : column
+        columns: prev.columns.map((col) =>
+          col.id === columnId
+            ? { ...col, cardIds: col.cardIds.filter((id) => id !== cardId) }
+            : col
         ),
-      };
-    });
+      }));
+    } catch {
+      // silently fail
+    } finally {
+      setBusy(false);
+    }
   };
 
   const activeCard = activeCardId ? cardsById[activeCardId] : null;
@@ -111,13 +181,21 @@ export const KanbanBoard = () => {
                 and capture quick notes without getting buried in settings.
               </p>
             </div>
-            <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-5 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
-                Focus
-              </p>
-              <p className="mt-2 text-lg font-semibold text-[var(--primary-blue)]">
-                One board. Five columns. Zero clutter.
-              </p>
+            <div className="flex items-start gap-4">
+              <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
+                  Focus
+                </p>
+                <p className="mt-2 text-lg font-semibold text-[var(--primary-blue)]">
+                  One board. Five columns. Zero clutter.
+                </p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="rounded-xl border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)] transition-colors hover:border-[var(--navy-dark)] hover:text-[var(--navy-dark)]"
+              >
+                Sign out
+              </button>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -133,32 +211,38 @@ export const KanbanBoard = () => {
           </div>
         </header>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <section className="grid gap-6 lg:grid-cols-5">
-            {board.columns.map((column) => (
-              <KanbanColumn
-                key={column.id}
-                column={column}
-                cards={column.cardIds.map((cardId) => board.cards[cardId])}
-                onRename={handleRenameColumn}
-                onAddCard={handleAddCard}
-                onDeleteCard={handleDeleteCard}
-              />
-            ))}
-          </section>
-          <DragOverlay>
-            {activeCard ? (
-              <div className="w-[260px]">
-                <KanbanCardPreview card={activeCard} />
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+        {loading ? (
+          <p className="text-sm text-[var(--gray-text)]">Loading board...</p>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={collisionDetection}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <section
+              className={`grid gap-6 lg:grid-cols-5 ${busy ? "pointer-events-none opacity-70" : ""}`}
+            >
+              {board.columns.map((column) => (
+                <KanbanColumn
+                  key={column.id}
+                  column={column}
+                  cards={column.cardIds.map((cardId) => board.cards[cardId])}
+                  onRename={handleRenameColumn}
+                  onAddCard={handleAddCard}
+                  onDeleteCard={handleDeleteCard}
+                />
+              ))}
+            </section>
+            <DragOverlay>
+              {activeCard ? (
+                <div className="w-[260px]">
+                  <KanbanCardPreview card={activeCard} />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
       </main>
     </div>
   );
