@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+
+# Environment
+.env
+
+# Database
+data/
+
+# OS
+.DS_Store
