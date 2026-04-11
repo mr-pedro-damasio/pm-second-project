@@ -32,3 +32,24 @@ body {
 .font-display {
   font-family: var(--font-display), "Segoe UI", sans-serif;
 }
+
+/* Scrollbar for horizontal column scroll */
+.columns-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.columns-scroll::-webkit-scrollbar-track {
+  background: rgba(3, 33, 71, 0.05);
+  border-radius: 9999px;
+}
+.columns-scroll::-webkit-scrollbar-thumb {
+  background: rgba(3, 33, 71, 0.22);
+  border-radius: 9999px;
+}
+.columns-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(3, 33, 71, 0.38);
+}
+/* Firefox */
+.columns-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(3, 33, 71, 0.22) rgba(3, 33, 71, 0.05);
+}
