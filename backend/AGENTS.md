@@ -11,18 +11,32 @@ FastAPI backend that serves the statically-built Next.js frontend and exposes a 
 | Framework | FastAPI |
 | Server | uvicorn |
 | Package manager | uv |
-| Database | SQLite via SQLAlchemy (added in Part 6) |
-| Testing | pytest + httpx (via FastAPI TestClient) |
+| Database | SQLite via SQLAlchemy async + aiosqlite |
+| Auth | itsdangerous signed HTTP-only session cookie |
+| AI | openai-compatible client via OpenRouter |
+| Testing | pytest + anyio + httpx (via FastAPI TestClient) |
 
 ## File map
 
 ```
 backend/
-├── main.py          — FastAPI app entry point; API routes and static file serving
-├── pyproject.toml   — uv project definition; runtime and dev dependencies
+├── main.py             — FastAPI app entry; auth routes, static serving, session middleware
+├── models.py           — SQLAlchemy ORM models (User, Board, KanbanColumn, Card)
+├── database.py         — async engine setup, create_all on startup, get_db dependency
+├── crud.py             — database operations (get_board, add_card, move_card, rename_column, …)
+├── ai.py               — OpenRouter async client (chat_completion, get_api_key)
+├── pyproject.toml      — uv project definition; runtime and dev dependencies
+├── routes/
+│   ├── board.py        — board CRUD routes (/api/board, /api/cards, /api/columns)
+│   └── ai.py           — AI routes (/api/ai/ping, /api/ai/chat)
 └── tests/
+    ├── conftest.py         — shared client fixture and DB setup
     ├── __init__.py
-    └── test_health.py  — tests for /api/health, /api/hello, and static serving
+    ├── test_health.py      — /api/health, /api/hello, static serving
+    ├── test_auth.py        — login, logout, session redirect behaviour
+    ├── test_board.py       — board CRUD routes
+    ├── test_ai_ping.py     — /api/ai/ping (mocked OpenRouter)
+    └── test_ai_chat.py     — /api/ai/chat with board operations (mocked OpenRouter)
 ```
 
 ## Running locally (outside Docker)
@@ -37,7 +51,6 @@ uv run uvicorn main:app --reload --port 8000
 
 ```bash
 cd backend
-uv sync
 uv run pytest
 ```
 
@@ -45,13 +58,7 @@ uv run pytest
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `STATIC_DIR` | `<backend_dir>/static` | Path to the directory containing the built frontend files |
-
-## What will be added in later parts
-
-- `auth.py` — session cookie auth (Part 4)
-- `models.py` — SQLAlchemy ORM models (Part 6)
-- `database.py` — DB engine setup and startup init (Part 6)
-- `crud.py` — database operations (Part 6)
-- `ai.py` — OpenRouter client (Part 8)
-- `routes/` — split route modules as the app grows (Part 6+)
+| `STATIC_DIR` | `<backend_dir>/static` | Path to the built frontend files |
+| `SECRET_KEY` | `dev-secret-key` | Signs session cookies — **must be set in production** |
+| `OPENROUTER_API_KEY` | *(none)* | Required for AI routes; loaded from `.env` or environment |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./data/kanban.db` | SQLite DB path inside the container |

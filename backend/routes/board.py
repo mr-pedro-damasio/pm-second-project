@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import crud
@@ -39,13 +39,13 @@ class BoardOut(BaseModel):
 
 class CreateCardRequest(BaseModel):
     column_id: int
-    title: str
-    details: str = ""
+    title: str = Field(..., min_length=1, max_length=200)
+    details: str = Field(default="", max_length=2000)
 
 
 class UpdateCardRequest(BaseModel):
-    title: str | None = None
-    details: str | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    details: str | None = Field(default=None, max_length=2000)
 
 
 class MoveCardRequest(BaseModel):
@@ -54,7 +54,7 @@ class MoveCardRequest(BaseModel):
 
 
 class RenameColumnRequest(BaseModel):
-    title: str
+    title: str = Field(..., min_length=1, max_length=200)
 
 
 # --- Auth dependency ---
@@ -117,6 +117,8 @@ async def create_card(
     db: AsyncSession = Depends(database.get_db),
 ):
     board_id = await crud.get_user_board_id(db, user.id)
+    if board_id is None:
+        raise HTTPException(status_code=404, detail="Board not found")
     await _assert_column_owned(db, body.column_id, board_id)
     card = await crud.add_card(db, body.column_id, body.title, body.details)
     await db.commit()
@@ -131,6 +133,8 @@ async def update_card(
     db: AsyncSession = Depends(database.get_db),
 ):
     board_id = await crud.get_user_board_id(db, user.id)
+    if board_id is None:
+        raise HTTPException(status_code=404, detail="Board not found")
     await _assert_card_owned(db, card_id, board_id)
     card = await crud.update_card(db, card_id, body.title, body.details)
     await db.commit()
@@ -144,6 +148,8 @@ async def delete_card(
     db: AsyncSession = Depends(database.get_db),
 ):
     board_id = await crud.get_user_board_id(db, user.id)
+    if board_id is None:
+        raise HTTPException(status_code=404, detail="Board not found")
     await _assert_card_owned(db, card_id, board_id)
     await crud.delete_card(db, card_id)
     await db.commit()
@@ -157,6 +163,8 @@ async def move_card(
     db: AsyncSession = Depends(database.get_db),
 ):
     board_id = await crud.get_user_board_id(db, user.id)
+    if board_id is None:
+        raise HTTPException(status_code=404, detail="Board not found")
     await _assert_card_owned(db, card_id, board_id)
     await _assert_column_owned(db, body.column_id, board_id)
     card = await crud.move_card(db, card_id, body.column_id, body.position)
@@ -172,6 +180,8 @@ async def rename_column(
     db: AsyncSession = Depends(database.get_db),
 ):
     board_id = await crud.get_user_board_id(db, user.id)
+    if board_id is None:
+        raise HTTPException(status_code=404, detail="Board not found")
     await _assert_column_owned(db, column_id, board_id)
     col = await crud.rename_column(db, column_id, body.title)
     await db.commit()

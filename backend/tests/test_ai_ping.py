@@ -1,46 +1,8 @@
 from unittest.mock import AsyncMock, patch
 
-import anyio
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-import crud
-import database
-import main
-from models import Base
-
-
-async def _setup(url: str):
-    engine = create_async_engine(url)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    sf = async_sessionmaker(engine, expire_on_commit=False)
-    async with sf() as db:
-        await crud.seed_default_user(db)
-    return engine, sf
-
-
-@pytest.fixture()
-def client(tmp_path, monkeypatch):
-    monkeypatch.setattr(main, "STATIC_DIR", tmp_path)
-    (tmp_path / "index.html").write_text("<h1>Hello</h1>")
-    engine, sf = anyio.run(_setup, f"sqlite+aiosqlite:///{tmp_path}/test.db")
-    monkeypatch.setattr(database, "engine", engine)
-    monkeypatch.setattr(database, "SessionLocal", sf)
-    async def override():
-        async with sf() as s:
-            yield s
-    main.app.dependency_overrides[database.get_db] = override
-    with TestClient(main.app, follow_redirects=False) as c:
-        yield c
-    main.app.dependency_overrides.clear()
-    anyio.run(engine.dispose)
-
-
-def _login(client):
-    r = client.post("/api/auth/login", json={"username": "user", "password": "password"})
-    return {"session": r.cookies["session"]}
+from conftest import login as _login
 
 
 def test_ping_returns_result(client):

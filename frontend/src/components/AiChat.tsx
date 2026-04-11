@@ -45,7 +45,7 @@ export const AiChat = ({ board, onBoardUpdate }: Props) => {
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: `Error: ${err instanceof Error ? err.message : String(err)}` },
+        { role: "assistant", content: "Something went wrong. Please try again." },
       ]);
     } finally {
       setSending(false);

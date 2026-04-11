@@ -73,30 +73,6 @@ test("column rename persists after reload", async ({ page }) => {
   ).toHaveValue("Renamed Column");
 });
 
-test("ai chat creates a card on the board", async ({ page, request }) => {
-  // Clear any cards added by other tests to have a predictable board
-  await page.goto("/");
-  const firstColumn = page.locator('[data-testid^="column-"]').first();
-
-  // Ask the AI to add a card (this requires a real OPENROUTER_API_KEY in the environment;
-  // if absent the test is skipped gracefully).
-  const ping = await request.get("/api/ai/ping");
-  if (ping.status() !== 200) {
-    test.skip(true, "AI not available — skipping AI chat e2e test");
-    return;
-  }
-
-  const chatInput = page.getByPlaceholder("Ask the AI...");
-  await chatInput.fill("Add a card titled 'AI E2E Card' to the first column with details 'created by test'.");
-  await page.getByRole("button", { name: /send/i }).click();
-
-  // Wait for the assistant reply to appear
-  await expect(page.locator("aside").getByText(/done|added|created/i)).toBeVisible({ timeout: 30_000 });
-
-  // Card should now appear on the board
-  await expect(firstColumn.getByText("AI E2E Card")).toBeVisible({ timeout: 10_000 });
-});
-
 test("login and logout flow", async ({ page, context }) => {
   // Clear the session cookie to test login from scratch
   await context.clearCookies();

@@ -49,10 +49,8 @@ export const toBoardData = (board: ApiBoard): BoardData => {
 // --- Fetch helpers ---
 
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
+  const headers: HeadersInit = init?.body ? { "Content-Type": "application/json" } : {};
+  const res = await fetch(path, { ...init, headers });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res;
 }

@@ -3,7 +3,7 @@ import os
 import httpx
 from dotenv import dotenv_values, find_dotenv
 
-MODEL = "deepseek/deepseek-chat-v3"
+MODEL = "openai/gpt-oss-120b"
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 
 # Read from .env file first (dev), fall back to os.environ (Docker / CI)

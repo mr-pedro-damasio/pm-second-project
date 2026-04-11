@@ -1,9 +1,11 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import find_dotenv, load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import BaseModel
@@ -15,8 +17,12 @@ import database
 from routes.ai import router as ai_router
 from routes.board import router as board_router
 
+logger = logging.getLogger(__name__)
+
 STATIC_DIR = Path(os.getenv("STATIC_DIR", str(Path(__file__).parent / "static")))
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
+if SECRET_KEY == "dev-secret-key":
+    logger.warning("Using insecure default SECRET_KEY — set SECRET_KEY env var in production")
 _signer = URLSafeSerializer(SECRET_KEY, salt="session")
 
 
@@ -29,6 +35,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(board_router)
 app.include_router(ai_router)
 
@@ -96,9 +109,14 @@ def serve_frontend(full_path: str, request: Request):
             if user is None:
                 return RedirectResponse("/login", status_code=302)
 
-    candidate = STATIC_DIR / full_path
-    if candidate.is_file():
-        return FileResponse(candidate)
+    static_root = STATIC_DIR.resolve()
+    candidate = (STATIC_DIR / full_path).resolve()
+    if not str(candidate).startswith(str(static_root)):
+        raise HTTPException(status_code=404)
+
+    rel = STATIC_DIR / full_path
+    if rel.is_file():
+        return FileResponse(rel)
     # Next.js per-page HTML: /login → login/index.html or login.html
     for page in (
         STATIC_DIR / full_path / "index.html",

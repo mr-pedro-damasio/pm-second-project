@@ -15,6 +15,13 @@ claude plugins marketplace update claude-plugins-official || true
 # Install required plugin from the explicit marketplace.
 claude plugins install ralph-loop@claude-plugins-official
 
+# Install uv (Python package manager).
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+
+# Install backend dependencies.
+(cd backend && uv sync)
+
 # Install project dependencies.
 (cd frontend && npm install)
 

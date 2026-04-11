@@ -16,5 +16,5 @@ ENV_ARG=""
 if [ -f "$ENV_FILE" ]; then
   ENV_ARG="--env-file $ENV_FILE"
 fi
-docker run -d --name "$CONTAINER" -p "${PORT}:8000" $ENV_ARG "$IMAGE"
+docker run -d --name "$CONTAINER" -p "${PORT}:8000" -v kanban-studio-data:/app/data $ENV_ARG "$IMAGE"
 echo "Kanban Studio running at http://localhost:${PORT}"

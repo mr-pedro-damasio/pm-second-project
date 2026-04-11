@@ -29,6 +29,7 @@ const collisionDetection: CollisionDetection = (args) => {
 export const KanbanBoard = () => {
   const [board, setBoard] = useState<BoardData>({ columns: [], cards: {} });
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
@@ -38,7 +39,9 @@ export const KanbanBoard = () => {
   };
 
   useEffect(() => {
-    fetchBoard().catch(() => {}).finally(() => setLoading(false));
+    fetchBoard()
+      .catch(() => setFetchError("Could not load the board. Please refresh."))
+      .finally(() => setLoading(false));
   }, []);
 
   const sensors = useSensors(
@@ -215,6 +218,8 @@ export const KanbanBoard = () => {
 
         {loading ? (
           <p className="text-sm text-[var(--gray-text)]">Loading board...</p>
+        ) : fetchError ? (
+          <p className="text-sm text-red-500">{fetchError}</p>
         ) : (
           <div className="flex items-start gap-6">
             <div className="min-w-0 flex-1">

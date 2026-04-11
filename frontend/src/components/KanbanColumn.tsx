@@ -50,6 +50,10 @@ export const KanbanColumn = ({
             value={localTitle}
             onChange={(e) => setLocalTitle(e.target.value)}
             onBlur={() => {
+              if (localTitle.trim() === "") {
+                setLocalTitle(column.title);
+                return;
+              }
               if (localTitle !== column.title) {
                 onRename(column.id, localTitle);
               }

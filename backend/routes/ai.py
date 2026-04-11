@@ -2,8 +2,6 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
-
-logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +10,8 @@ import crud
 import database
 from models import User
 from routes.board import require_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -97,7 +97,9 @@ def _build_system_prompt(board: ChatBoardData) -> str:
 
 async def _apply_operations(
     db: AsyncSession, operations: list[dict]
-) -> None:
+) -> int:
+    """Apply operations and return the number that succeeded."""
+    applied = 0
     for op in operations:
         kind = op.get("op")
         try:
@@ -111,9 +113,14 @@ async def _apply_operations(
                 await crud.delete_card(db, op["card_id"])
             elif kind == "rename_column":
                 await crud.rename_column(db, op["column_id"], op["title"])
-        except Exception:
+            else:
+                logger.warning("Unknown operation type: %s", kind)
+                continue
+            applied += 1
+        except Exception as e:
             # Skip invalid operations — don't abort the whole request
-            pass
+            logger.warning("Failed to apply operation %s: %s", op, e)
+    return applied
 
 
 # --- Routes ---
@@ -172,9 +179,10 @@ async def ai_chat(
 
     board_updated = False
     if operations:
-        await _apply_operations(db, operations)
-        await db.commit()
-        board_updated = True
+        applied = await _apply_operations(db, operations)
+        if applied > 0:
+            await db.commit()
+            board_updated = True
 
     return AiChatResponse(
         message=ai_message,

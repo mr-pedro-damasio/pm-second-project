@@ -2,13 +2,13 @@
 
 ## Purpose
 
-This is a complete, working Next.js Kanban board application. It is frontend-only (no backend, no persistence). It serves as the starting point for the full-stack integration described in the project PLAN.md.
+A full-stack Kanban board application. The Next.js frontend is statically exported and served by a FastAPI backend. Board state is persisted in SQLite via the backend API. An AI chat sidebar lets users manage the board through natural language.
 
 ## Tech stack
 
 | Concern | Library | Version |
 |---------|---------|---------|
-| Framework | Next.js (App Router) | 15.x |
+| Framework | Next.js (App Router, static export) | 16.x |
 | UI | React | 19.x |
 | Language | TypeScript | ^5 |
 | Styling | Tailwind CSS v4 | ^4 |
@@ -22,24 +22,32 @@ This is a complete, working Next.js Kanban board application. It is frontend-onl
 frontend/
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx          — root layout, font imports, CSS variables
-│   │   ├── page.tsx            — entry point; renders <KanbanBoard />
-│   │   └── globals.css         — Tailwind base + CSS custom properties
+│   │   ├── layout.tsx              — root layout, font imports
+│   │   ├── page.tsx                — entry point; renders <KanbanBoard />
+│   │   ├── globals.css             — Tailwind base + CSS custom properties
+│   │   └── login/
+│   │       └── page.tsx            — login form; POSTs to /api/auth/login
 │   ├── components/
-│   │   ├── KanbanBoard.tsx     — root component; owns BoardData state and DndContext
-│   │   ├── KanbanColumn.tsx    — column with droppable zone, rename input, card list
-│   │   ├── KanbanCard.tsx      — individual draggable card with remove button
-│   │   ├── KanbanCardPreview.tsx — ghost overlay shown while dragging
-│   │   ├── NewCardForm.tsx     — inline form to add a card to a column
-│   │   └── KanbanBoard.test.tsx — Vitest/RTL unit tests for board interactions
+│   │   ├── KanbanBoard.tsx         — root; owns BoardData state, API calls, DndContext
+│   │   ├── KanbanBoard.test.tsx    — Vitest/RTL unit tests for board interactions
+│   │   ├── KanbanColumn.tsx        — column with droppable zone, rename input, card list
+│   │   ├── KanbanCard.tsx          — individual draggable card with remove button
+│   │   ├── KanbanCardPreview.tsx   — ghost overlay shown while dragging
+│   │   ├── NewCardForm.tsx         — inline form to add a card to a column
+│   │   ├── AiChat.tsx              — sidebar chat widget; sends board state + history to AI
+│   │   └── AiChat.test.tsx         — Vitest/RTL unit tests for AI chat interactions
 │   ├── lib/
-│   │   ├── kanban.ts           — data types, initialData, moveCard(), createId()
-│   │   └── kanban.test.ts      — unit tests for moveCard logic
+│   │   ├── kanban.ts               — data types (Card, Column, BoardData), moveCard()
+│   │   ├── kanban.test.ts          — unit tests for moveCard logic
+│   │   ├── api.ts                  — typed fetch helpers for all backend routes
+│   │   └── api.test.ts             — unit tests for api.ts (fetch mocks)
 │   └── test/
-│       ├── setup.ts            — Vitest global setup (jest-dom matchers)
-│       └── vitest.d.ts         — type augmentation for custom matchers
+│       ├── setup.ts                — Vitest global setup (jest-dom matchers)
+│       └── vitest.d.ts             — type augmentation for custom matchers
 └── tests/
-    └── kanban.spec.ts          — Playwright e2e tests
+    ├── kanban.spec.ts              — Playwright e2e tests (board, auth, persistence)
+    └── integration/
+        └── ai.spec.ts              — AI chat e2e test (requires OPENROUTER_API_KEY)
 ```
 
 ## Data model
@@ -47,65 +55,65 @@ frontend/
 Defined in `src/lib/kanban.ts`:
 
 ```ts
-type Card   = { id: string; title: string; details: string }
-type Column = { id: string; title: string; cardIds: string[] }
+type Card     = { id: string; title: string; details: string }
+type Column   = { id: string; title: string; cardIds: string[] }
 type BoardData = { columns: Column[]; cards: Record<string, Card> }
 ```
 
-Columns hold only an ordered list of card IDs. Cards are stored in a flat map keyed by ID (normalized structure). This makes reordering cheap and avoids duplication.
+Columns hold only an ordered list of card ID strings. Cards are stored in a flat map keyed by ID (normalised structure). IDs are assigned by the backend (`card-{n}`, `col-{n}`) via the helpers in `api.ts`.
 
-`initialData` in `kanban.ts` is hardcoded demo data. In later parts this will be replaced by an API fetch.
+Board state is fetched from `GET /api/board` on mount. All mutations call the backend and update local state on success. On API error, state is rolled back to the previous value.
 
 ## Key logic
 
-- `moveCard(columns, activeId, overId)` — pure function; handles same-column reorder and cross-column moves. Returns a new columns array.
-- `createId(prefix)` — generates a collision-resistant ID using `Math.random()` + `Date.now()`.
+- `moveCard(columns, activeId, overId)` — pure function; handles same-column reorder and cross-column moves. Returns a new columns array. Used for optimistic drag-drop updates before the backend confirms.
+- `api.ts` — `toBoardData(ApiBoard)` converts the API response to `BoardData`. `toColId` / `toCardId` / `fromColId` / `fromCardId` translate between numeric backend IDs and string frontend IDs.
 
 ## Component responsibilities
 
 | Component | State owned | Events emitted |
 |-----------|-------------|----------------|
-| `KanbanBoard` | `BoardData`, `activeCardId` | none (root) |
-| `KanbanColumn` | none | `onRename`, `onAddCard`, `onDeleteCard` |
+| `KanbanBoard` | `BoardData`, `loading`, `fetchError`, `busy`, `activeCardId` | none (root) |
+| `KanbanColumn` | `localTitle` (rename input) | `onRename`, `onAddCard`, `onDeleteCard` |
 | `KanbanCard` | none | `onDelete` |
 | `KanbanCardPreview` | none | none |
 | `NewCardForm` | local form fields | `onAdd` |
+| `AiChat` | `messages`, `input`, `sending` | `onBoardUpdate` callback |
 
 ## CSS / design system
 
-CSS custom properties are set in `globals.css` and map to the project color scheme:
+CSS custom properties are set in `globals.css` and map to the project colour scheme:
 
 ```
---accent-yellow:  #ecad0a
---primary-blue:   #209dd7
---purple-secondary: #753991
---navy-dark:      #032147
---gray-text:      #888888
+--accent-yellow:    #ecad0a   — accent lines, highlights
+--primary-blue:     #209dd7   — links, key sections
+--purple-secondary: #753991   — submit buttons, important actions
+--navy-dark:        #032147   — main headings
+--gray-text:        #888888   — supporting text, labels
 ```
 
-Tailwind v4 is used for layout and spacing. Component-level styles use Tailwind utility classes referencing these variables.
+Tailwind v4 is used for layout and spacing. All component styles use Tailwind utility classes referencing these variables via `var(--name)`.
 
-## Running locally (standalone, no Docker)
+## Running locally (with Docker)
+
+```bash
+# From project root
+bash scripts/start.sh       # build image and run container at http://localhost:8000
+bash scripts/stop.sh        # stop and remove container
+```
+
+## Running tests
 
 ```bash
 cd frontend
-npm install
-npm run dev       # dev server at http://localhost:3000
-npm test          # Vitest unit tests
-npm run build     # production static export (once output: 'export' is configured)
-npx playwright test  # e2e tests (requires dev or preview server running)
+npm test                    # Vitest unit tests (23 tests)
+npm run test:e2e            # Playwright e2e tests against http://localhost:8000
+npx playwright test --config=playwright.integration.config.ts  # AI integration tests
 ```
-
-## What will change in later parts
-
-- `initialData` in `kanban.ts` will be replaced by an API fetch (`/api/board`).
-- A login page/redirect will wrap the board (Part 4).
-- All board mutations (add, move, rename, delete) will POST/PATCH to the backend (Part 7).
-- An AI chat sidebar will be added alongside `KanbanBoard` (Part 10).
-- `next.config.ts` will be updated to `output: 'export'` for static build serving via FastAPI (Part 3).
 
 ## Coding conventions
 
 - Components are named exports (not default exports), except `page.tsx` which uses a default export per Next.js convention.
 - No global state library — all state lives in `KanbanBoard` and is passed down via props.
-- `data-testid` attributes are present on columns (`column-{id}`) and cards (`card-{id}`) for test targeting.
+- `data-testid` attributes are present on columns (`column-col-{id}`) and cards (`card-card-{id}`) for test targeting.
+- Optimistic updates: local state is updated immediately; on API failure, the previous state is restored.

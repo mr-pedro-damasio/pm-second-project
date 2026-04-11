@@ -8,7 +8,7 @@ RUN npm run build
 
 # Stage 2: Python runtime
 FROM python:3.12-slim AS runtime
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /bin/uv
 WORKDIR /app
 COPY backend/pyproject.toml ./
 RUN uv sync --no-dev --no-install-project
