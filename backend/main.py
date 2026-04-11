@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from itsdangerous import BadSignature, URLSafeSerializer
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 load_dotenv(find_dotenv(usecwd=True))
 
@@ -47,11 +47,17 @@ app.include_router(ai_router)
 
 
 class Credentials(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=1, max_length=50)
+    password: str = Field(..., min_length=1)
+
+
+class RegisterRequest(BaseModel):
+    username: str = Field(..., min_length=2, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
+    password: str = Field(..., min_length=6)
 
 
 def _get_session(request: Request) -> str | None:
+    """Return the username stored in the signed session cookie, or None."""
     token = request.cookies.get("session")
     if not token:
         return None
@@ -59,6 +65,11 @@ def _get_session(request: Request) -> str | None:
         return _signer.loads(token)
     except BadSignature:
         return None
+
+
+def _set_session(response: Response, username: str) -> None:
+    token = _signer.dumps(username)
+    response.set_cookie("session", token, httponly=True, samesite="lax")
 
 
 @app.get("/api/health")
@@ -72,12 +83,26 @@ def hello():
 
 
 @app.post("/api/auth/login")
-def login(credentials: Credentials, response: Response):
-    if credentials.username == "user" and credentials.password == "password":
-        token = _signer.dumps(credentials.username)
-        response.set_cookie("session", token, httponly=True, samesite="lax")
-        return {"ok": True}
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+async def login(credentials: Credentials, response: Response):
+    async with database.SessionLocal() as db:
+        user = await crud.get_user(db, credentials.username)
+    if user is None or not crud.verify_password(credentials.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    _set_session(response, credentials.username)
+    return {"ok": True}
+
+
+@app.post("/api/auth/register", status_code=201)
+async def register(body: RegisterRequest, response: Response):
+    async with database.SessionLocal() as db:
+        existing = await crud.get_user(db, body.username)
+        if existing is not None:
+            raise HTTPException(status_code=409, detail="Username already taken")
+        user = await crud.create_user(db, body.username, body.password)
+        await crud.create_board(db, user.id, "My Board")
+        await db.commit()
+    _set_session(response, body.username)
+    return {"ok": True}
 
 
 @app.post("/api/auth/logout")

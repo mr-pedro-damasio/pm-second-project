@@ -52,7 +52,7 @@ describe("api", () => {
           title: "Backlog",
           position: 0,
           cards: [
-            { id: 1, column_id: 1, title: "A card", details: "Details", position: 0 },
+            { id: 1, column_id: 1, title: "A card", details: "Details", priority: "high", due_date: "2026-05-01", labels: ["important"], position: 0 },
           ],
         },
       ],
@@ -62,7 +62,7 @@ describe("api", () => {
     expect(board.columns[0].id).toBe("col-1");
     expect(board.columns[0].title).toBe("Backlog");
     expect(board.columns[0].cardIds).toEqual(["card-1"]);
-    expect(board.cards["card-1"]).toEqual({ id: "card-1", title: "A card", details: "Details" });
+    expect(board.cards["card-1"]).toEqual({ id: "card-1", title: "A card", details: "Details", priority: "high", due_date: "2026-05-01", labels: ["important"] });
   });
 
   // --- fetch helpers ---

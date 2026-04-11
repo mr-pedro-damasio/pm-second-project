@@ -64,13 +64,14 @@ You MUST respond with a valid JSON object following this exact structure:
 }
 
 Available board operations (use the exact column_id / card_id values from the board):
-  {"op": "create_card",   "column_id": <int>, "title": "<str>", "details": "<str>"}
+  {"op": "create_card",   "column_id": <int>, "title": "<str>", "details": "<str>", "priority": "<low|medium|high>", "due_date": "<YYYY-MM-DD|null>"}
   {"op": "move_card",     "card_id": <int>, "column_id": <int>, "position": <int>}
-  {"op": "edit_card",     "card_id": <int>, "title": "<str|null>", "details": "<str|null>"}
+  {"op": "edit_card",     "card_id": <int>, "title": "<str|null>", "details": "<str|null>", "priority": "<low|medium|high|null>", "due_date": "<YYYY-MM-DD|null>"}
   {"op": "delete_card",   "card_id": <int>}
   {"op": "rename_column", "column_id": <int>, "title": "<str>"}
 
 position is 0-based (0 = top of column).
+priority defaults to "medium". due_date format is YYYY-MM-DD or null.
 Only include "operations" when modifying the board. For questions or analysis, set it to null.
 """
 
@@ -104,11 +105,19 @@ async def _apply_operations(
         kind = op.get("op")
         try:
             if kind == "create_card":
-                await crud.add_card(db, op["column_id"], op["title"], op.get("details", ""))
+                await crud.add_card(
+                    db, op["column_id"], op["title"], op.get("details", ""),
+                    priority=op.get("priority", "medium"),
+                    due_date=op.get("due_date"),
+                )
             elif kind == "move_card":
                 await crud.move_card(db, op["card_id"], op["column_id"], op["position"])
             elif kind == "edit_card":
-                await crud.update_card(db, op["card_id"], op.get("title"), op.get("details"))
+                await crud.update_card(
+                    db, op["card_id"], op.get("title"), op.get("details"),
+                    priority=op.get("priority"),
+                    due_date=op.get("due_date"),
+                )
             elif kind == "delete_card":
                 await crud.delete_card(db, op["card_id"])
             elif kind == "rename_column":

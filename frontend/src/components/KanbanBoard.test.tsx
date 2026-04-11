@@ -4,7 +4,24 @@ import { vi } from "vitest";
 import { KanbanBoard } from "@/components/KanbanBoard";
 
 vi.mock("@/lib/api", () => {
-  const mockBoard = {
+  const mkCard = (id: number, colId: number, title: string) => ({
+    id, column_id: colId, title, details: "", priority: "medium", due_date: null, labels: [], position: 0,
+  });
+  const mockApiBoard = {
+    id: 1,
+    title: "My Board",
+    columns: [
+      { id: 1, title: "Backlog", position: 0, cards: [mkCard(1, 1, "Card 1"), mkCard(2, 1, "Card 2")] },
+      { id: 2, title: "Discovery", position: 1, cards: [mkCard(3, 2, "Card 3")] },
+      { id: 3, title: "In Progress", position: 2, cards: [mkCard(4, 3, "Card 4"), mkCard(5, 3, "Card 5")] },
+      { id: 4, title: "Review", position: 3, cards: [mkCard(6, 4, "Card 6")] },
+      { id: 5, title: "Done", position: 4, cards: [mkCard(7, 5, "Card 7"), mkCard(8, 5, "Card 8")] },
+    ],
+  };
+  const mkBoardCard = (id: string, title: string) => ({
+    id, title, details: "", priority: "medium" as const, due_date: null, labels: [],
+  });
+  const mockBoardData = {
     columns: [
       { id: "col-1", title: "Backlog", cardIds: ["card-1", "card-2"] },
       { id: "col-2", title: "Discovery", cardIds: ["card-3"] },
@@ -13,28 +30,40 @@ vi.mock("@/lib/api", () => {
       { id: "col-5", title: "Done", cardIds: ["card-7", "card-8"] },
     ],
     cards: {
-      "card-1": { id: "card-1", title: "Card 1", details: "" },
-      "card-2": { id: "card-2", title: "Card 2", details: "" },
-      "card-3": { id: "card-3", title: "Card 3", details: "" },
-      "card-4": { id: "card-4", title: "Card 4", details: "" },
-      "card-5": { id: "card-5", title: "Card 5", details: "" },
-      "card-6": { id: "card-6", title: "Card 6", details: "" },
-      "card-7": { id: "card-7", title: "Card 7", details: "" },
-      "card-8": { id: "card-8", title: "Card 8", details: "" },
+      "card-1": mkBoardCard("card-1", "Card 1"),
+      "card-2": mkBoardCard("card-2", "Card 2"),
+      "card-3": mkBoardCard("card-3", "Card 3"),
+      "card-4": mkBoardCard("card-4", "Card 4"),
+      "card-5": mkBoardCard("card-5", "Card 5"),
+      "card-6": mkBoardCard("card-6", "Card 6"),
+      "card-7": mkBoardCard("card-7", "Card 7"),
+      "card-8": mkBoardCard("card-8", "Card 8"),
     },
   };
   return {
-    getBoard: vi.fn().mockResolvedValue({}),
-    toBoardData: vi.fn().mockReturnValue(mockBoard),
+    listBoards: vi.fn().mockResolvedValue([{ id: 1, title: "My Board" }]),
+    getBoardById: vi.fn().mockResolvedValue(mockApiBoard),
+    getBoard: vi.fn().mockResolvedValue(mockApiBoard),
+    toBoardData: vi.fn().mockReturnValue(mockBoardData),
+    createBoard: vi.fn().mockResolvedValue({ id: 2, title: "New Board", columns: [] }),
+    renameBoard: vi.fn().mockResolvedValue({ id: 1, title: "Renamed" }),
+    deleteBoard: vi.fn().mockResolvedValue(undefined),
     createCard: vi
       .fn()
-      .mockResolvedValue({ id: 99, column_id: 1, title: "New card", details: "Notes", position: 2 }),
+      .mockResolvedValue({ id: 99, column_id: 1, title: "New card", details: "Notes", priority: "medium", due_date: null, labels: [], position: 2 }),
+    updateCard: vi
+      .fn()
+      .mockResolvedValue({ id: 99, column_id: 1, title: "Updated", details: "", priority: "medium", due_date: null, labels: [], position: 0 }),
     deleteCard: vi.fn().mockResolvedValue(undefined),
     moveCard: vi.fn().mockResolvedValue({ id: 1, column_id: 1, title: "", details: "", position: 0 }),
     renameColumn: vi.fn().mockResolvedValue({ id: 1, title: "New Name", position: 0, cards: [] }),
+    createColumn: vi.fn().mockResolvedValue({ id: 6, title: "New Column", position: 5, cards: [] }),
+    deleteColumn: vi.fn().mockResolvedValue(undefined),
+    getBoardActivity: vi.fn().mockResolvedValue([]),
     fromColId: (id: string) => parseInt(id.slice(4), 10),
     fromCardId: (id: string) => parseInt(id.slice(5), 10),
     toCardId: (id: number) => `card-${id}`,
+    toColId: (id: number) => `col-${id}`,
   };
 });
 
@@ -73,5 +102,32 @@ describe("KanbanBoard", () => {
     );
 
     expect(within(column).queryByText("New card")).not.toBeInTheDocument();
+  });
+
+  it("shows new column button", async () => {
+    render(<KanbanBoard />);
+    await screen.findAllByTestId(/column-/i);
+    expect(screen.getByRole("button", { name: /new column/i })).toBeInTheDocument();
+  });
+
+  it("opens new column input when new column button is clicked", async () => {
+    render(<KanbanBoard />);
+    await screen.findAllByTestId(/column-/i);
+    await userEvent.click(screen.getByRole("button", { name: /new column/i }));
+    expect(screen.getByPlaceholderText(/column name/i)).toBeInTheDocument();
+  });
+
+  it("shows delete column buttons for each column", async () => {
+    render(<KanbanBoard />);
+    const columns = await screen.findAllByTestId(/column-/i);
+    // Delete buttons should exist (one per column)
+    const deleteBtns = screen.getAllByTitle(/delete column/i);
+    expect(deleteBtns.length).toBe(columns.length);
+  });
+
+  it("shows activity toggle button", async () => {
+    render(<KanbanBoard />);
+    await screen.findAllByTestId(/column-/i);
+    expect(screen.getByRole("button", { name: /show activity/i })).toBeInTheDocument();
   });
 });
