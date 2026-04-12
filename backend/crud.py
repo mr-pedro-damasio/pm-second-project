@@ -63,7 +63,7 @@ async def seed_default_user(db: AsyncSession) -> None:
         user.password_hash = hash_password("password")
         await db.flush()
 
-    board = await db.execute(select(Board).where(Board.user_id == user.id))
+    board = await db.execute(select(Board.id).where(Board.user_id == user.id).limit(1))
     if board.scalar_one_or_none() is None:
         new_board = Board(user_id=user.id, title="My Board")
         db.add(new_board)

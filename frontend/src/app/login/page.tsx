@@ -56,7 +56,7 @@ export default function LoginPage() {
           {mode === "login" ? "Welcome back" : "Create account"}
         </p>
         <h1 className="mt-3 font-display text-3xl font-semibold text-[var(--navy-dark)]">
-          Kanban Studio
+          pm-project
         </h1>
 
         <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">

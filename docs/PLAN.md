@@ -1,4 +1,4 @@
-# Project Plan — Kanban Studio MVP
+# Project Plan — pm-project MVP
 
 ## Status legend
 - [ ] not started

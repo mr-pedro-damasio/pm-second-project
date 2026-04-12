@@ -2,7 +2,7 @@
 
 ## Application
 
-**Kanban Studio** — a single-board Kanban application for product managers. Cards are draggable between columns; columns are renameable. Board state is persisted in SQLite and served via a FastAPI backend. An AI chat sidebar lets users create, move, and edit cards through natural language.
+**pm-project** — a single-board Kanban application for product managers. Cards are draggable between columns; columns are renameable. Board state is persisted in SQLite and served via a FastAPI backend. An AI chat sidebar lets users create, move, and edit cards through natural language.
 
 ## Tech Stack
 
@@ -24,7 +24,7 @@
 ## Repository Structure
 
 ```
-pm-second-project/
+pm-project/
 ├── frontend/            # Next.js application (static export)
 │   ├── src/
 │   │   ├── app/         # App Router entry (layout, page, login)
@@ -71,4 +71,4 @@ FastAPI serves the Next.js static export and enforces auth at the file-serving l
 
 ## Data Persistence
 
-SQLite database at `./data/kanban.db` inside the container, persisted via a Docker named volume (`kanban-studio-data`). Schema: `users`, `boards`, `columns`, `cards` — see [database.md](database.md).
+SQLite database at `./data/kanban.db` inside the container, persisted via a Docker named volume (`pm-project-data`). Schema: `users`, `boards`, `columns`, `cards` — see [database.md](database.md).

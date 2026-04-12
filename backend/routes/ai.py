@@ -54,7 +54,7 @@ class AiChatResponse(BaseModel):
 # --- System prompt ---
 
 _SYSTEM_PROMPT = """\
-You are an AI assistant for a Kanban board app called Kanban Studio.
+You are an AI assistant for a Kanban board app called pm-project.
 The current board state is provided below. You help users manage their board.
 
 You MUST respond with a valid JSON object following this exact structure:

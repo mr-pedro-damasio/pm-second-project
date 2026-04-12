@@ -11,7 +11,7 @@ test.beforeEach(async ({ request, context }) => {
 
 test("loads the kanban board", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Kanban Studio" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "pm-project" })).toBeVisible();
   await expect(page.locator('[data-testid^="column-"]')).toHaveCount(5);
 });
 
@@ -84,7 +84,7 @@ test("login and logout flow", async ({ page, context }) => {
   await page.getByLabel("Password").fill("password");
   await page.getByRole("button", { name: /sign in/i }).click();
   // Should land on the board
-  await expect(page.getByRole("heading", { name: "Kanban Studio" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "pm-project" })).toBeVisible();
   // Logout
   await page.getByRole("button", { name: /sign out/i }).click();
   // Should redirect back to login

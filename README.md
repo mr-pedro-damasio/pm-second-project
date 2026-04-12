@@ -1,4 +1,4 @@
-# Kanban Studio
+# pm-project
 
 A focused project management application with multiple Kanban boards, AI assistance, and user management.
 
