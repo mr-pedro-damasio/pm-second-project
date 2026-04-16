@@ -18,7 +18,7 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": [
+      "extensions":  [
         "ms-azuretools.vscode-docker",
         "eamodio.gitlens",
         "esbenp.prettier-vscode",

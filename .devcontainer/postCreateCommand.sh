@@ -5,15 +5,10 @@ set -euo pipefail
 git config --global --add safe.directory "$(pwd)"
 
 # Install Claude Code CLI
-npm install -g @anthropic-ai/claude-code
+curl -fsSL https://claude.ai/install.sh | bash
 
-# Ensure the official Claude plugin marketplace is configured.
-# Ignore "already exists" style errors.
-claude plugins marketplace add anthropics/claude-plugins-official --scope user || true
-claude plugins marketplace update claude-plugins-official || true
-
-# Install required plugin from the explicit marketplace.
-claude plugins install ralph-loop@claude-plugins-official
+# Remove legacy npm installation if it exists.
+# npm uninstall -g @anthropic-ai/claude-code || true
 
 # Install uv (Python package manager).
 curl -LsSf https://astral.sh/uv/install.sh | sh
